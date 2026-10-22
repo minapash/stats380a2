@@ -1,0 +1,90 @@
+# Plot quarterly and annual GDP growth
+plotGrowths <- function(df, sectorName, startYear, endYear,
+                        col = c("skyblue", "red")) {
+
+  # Get growth rates
+  growth <- getGrowths(df, sectorName, startYear, endYear)
+
+  # Set up x positions
+  n <- nrow(growth)
+  x <- 1:n
+
+  # Set up plot
+  plot.new()
+  plot.window(xlim = c(0.5, n + 0.5), ylim = c(-20, 20))
+
+  # Draw horizontal grid lines
+  for (y in seq(-20, 20, by = 5)) {
+    abline(h = y, col = "grey80")
+  }
+
+  # Draw quarterly growth bars
+  rect(x - 0.3, 0, x + 0.3, growth$quarterlyRate,
+       col = col[1], border = col[1])
+
+  # Draw annual growth curve
+  lines(x, growth$annualRate, col = col[2], lwd = 2)
+
+  # Add axes
+  axis(2, at = seq(-20, 20, by = 5), las = 1)
+  q1 <- grepl("Q1", growth$quarter)
+  axis(1, at = which(q1),
+       labels = substr(as.character(growth$quarter[q1]), 1, 4))
+
+  # Set sector title
+  if (is.numeric(sectorName)) {
+    sectorName <- levels(df$sector)[sectorName]
+  }
+
+  # Add labels and title
+  title(xlab = "Year", ylab = "GDP growth (%)",
+        main = as.character(sectorName))
+
+  # Add legend
+  legend("topright",
+         legend = c("Quarterly growth", "Annual growth"),
+         fill = c(col[1], NA),
+         border = c(col[1], NA),
+         lty = c(NA, 1),
+         col = col,
+         lwd = c(NA, 2), bty = "n")
+}
+
+# Plot GDP growth for multiple sectors
+plotSectors <- function(
+  sectors = c("Total", "Primary industries",
+              "Goods producing industries", "Services industries"),
+  startYear, endYear, col = c("skyblue", "red"), df = gdp) {
+
+  # Set up multiple plots
+  n <- length(sectors)
+  ncol <- 3
+  nrow <- ceiling(n / ncol)
+  oldpar <- par(no.readonly = TRUE)
+
+  par(mfrow = c(nrow, ncol), mar = c(3, 3, 2, 1),
+      oma = c(0, 0, 1, 0))
+
+  # Plot each sector
+  for (sectorName in sectors) {
+    plotGrowths(df, sectorName, startYear, endYear, col = col)
+  }
+
+  # Restore plot settings
+  par(oldpar)
+}
+
+# Plot the four default sectors
+plotSectors(startYear = 2015, endYear = 2026)
+
+# Plot selected sectors with default colours
+plotSectors(c("Total", "Agriculture"), 2015, 2026)
+
+# Plot selected sectors with custom colours
+plotSectors(c("Total", "Agriculture"), 2015, 2026,
+            col = c("lightgreen", "blue"))
+
+# Test numeric sector indices
+plotSectors(c(1, 5, 20), 2015, 2026)
+
+plotSectors(startYear = 2015, endYear = 2026)

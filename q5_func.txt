@@ -1,0 +1,49 @@
+# Calculate quarterly GDP growth (%) for a sector within a year range.
+# Assumes gdp exists and is ordered by quarter.
+# Accepts sector names or numeric factor-level positions.
+# Relies on the global gdp dataset, limiting reuse with other datasets.
+getGrowth <- function(sectorName, startYear, endYear) {
+
+  # Check inputs
+  stopifnot(
+    length(sectorName) == 1,
+    is.character(sectorName) || is.numeric(sectorName),
+    !is.na(sectorName),
+    length(startYear) == 1, is.numeric(startYear),
+    is.finite(startYear), startYear == floor(startYear),
+    length(endYear) == 1, is.numeric(endYear),
+    is.finite(endYear), endYear == floor(endYear),
+    startYear <= endYear
+  )
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(factor(gdp$sector))
+    stopifnot(
+      sectorName == floor(sectorName),
+      sectorName >= 1,
+      sectorName <= length(sectorLevels)
+    )
+    sectorName <- sectorLevels[sectorName]
+  }
+
+  # Extract sector rows
+  sectorData <- subset(gdp, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)
+}

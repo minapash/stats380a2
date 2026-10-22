@@ -1,0 +1,881 @@
+---
+title: "STATS 380 Assignment 2"
+author: "Mina Pash"
+date: "due: 22-10-2026 6pm"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 1
+```{r}
+gdp <- read.csv("gdp-nz.csv", stringsAsFactors = TRUE)
+
+# Extract the Agriculture rows from data
+agriculture <- subset(gdp, sector == "Agriculture")
+
+# Calculate the percentage GDP growth from each quarter to the preceding quarter
+rate <- (agriculture$amount[-1] / agriculture$amount[-nrow(agriculture)] - 1) * 100
+
+# Select the quarter per each growth rate
+quarter <- agriculture$quarter[-1]
+
+# Combine the quarters and growth rates into df
+AgricultureGrowth <- data.frame(quarter = quarter, rate = rate)
+
+head(AgricultureGrowth) # First 6 rows
+tail(AgricultureGrowth) # Last 6 rows
+
+
+```
+
+# Question 2
+```{r}
+# Extract Total GDP rows from data
+total <- subset(gdp, sector == "Total")
+
+# Calculate quarterly GDP growth rate 
+rate <- (total$amount[-1] / total$amount[-nrow(total)] - 1) * 100
+
+# Select quarters
+quarter <- total$quarter[-1]
+
+# Combine into df
+TotalGrowth <- data.frame(quarter = quarter, rate = rate)
+
+head(TotalGrowth)
+  
+```
+# Question 3
+```{r start-of-func}
+
+# Create function to calculate GDP growth
+getGrowth <- function(sectorName) {
+  
+  # Extract sector rows
+  sectorData <- subset(gdp, sector == sectorName)
+  
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] / sectorData$amount[-nrow(sectorData)] - 1) * 100
+  
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+  
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+  
+  return(growth)}
+
+all.equal(AgricultureGrowth, getGrowth("Agriculture"))
+all.equal(TotalGrowth, getGrowth("Total"))
+
+head(getGrowth("Mining"))
+head(getGrowth("Education and training"))
+
+```
+# Question 4
+```{r}
+
+# Create func to calculate GDP growth
+getGrowth <- function(sectorName, startYear, endYear) {
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorName <- if (is.factor(gdp$sector)) {
+      levels(gdp$sector)[sectorName]}
+     else 
+      {levels(factor(gdp$sector))[sectorName]}}
+
+
+  # Extract sector rows
+  sectorData <- subset(gdp, sector == sectorName)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] / sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+getGrowth("Agriculture", 1988, 1989)
+getGrowth("Total", 2025, 2026)
+levels(factor(gdp[, 1]))[20]
+getGrowth(20, 2025, 2026)
+
+
+```
+# Question 5
+```{r}
+
+# Calculate quarterly GDP growth (%) for a sector within a year range.
+# Assumes gdp exists and is ordered by quarter.
+# Accepts sector names or numeric factor-level positions.
+# Relies on the global gdp dataset, limiting reuse with other datasets.
+getGrowth <- function(sectorName, startYear, endYear) {
+
+  # Check inputs
+  stopifnot(
+    length(sectorName) == 1,
+    is.character(sectorName) || is.numeric(sectorName),
+    !is.na(sectorName),
+    length(startYear) == 1, is.numeric(startYear),
+    is.finite(startYear), startYear == floor(startYear),
+    length(endYear) == 1, is.numeric(endYear),
+    is.finite(endYear), endYear == floor(endYear),
+    startYear <= endYear
+  )
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(factor(gdp$sector))
+    stopifnot(
+      sectorName == floor(sectorName),
+      sectorName >= 1,
+      sectorName <= length(sectorLevels)
+    )
+    sectorName <- sectorLevels[sectorName]
+  }
+
+  # Extract sector rows
+  sectorData <- subset(gdp, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)
+}
+
+# Tests
+
+all.equal(AgricultureGrowth, getGrowth("Agriculture", 1987, 2026))
+all.equal(TotalGrowth, getGrowth("Total", 1987, 2026))
+getGrowth("Agriculture", 1988, 1989)
+getGrowth("Total", 2025, 2026)
+getGrowth(20, 2025, 2026)
+
+```
+## Constants
+- 1 is used to select the previous and next observations when calculating growth.
+- 100 converts the growth rate into a percentage
+- 0 is used to check that the selected sector contains at least one row
+
+## Symbols
+
+Local:
+- sectorName
+- startYear
+- endYear
+- sectorLevels
+- sectorData
+- rate
+- quarter
+- growth
+- years
+
+Global:
+- gdp
+
+## Function Paths
+
+When getGrowth() is called, R searches from .GlobalEnv through the attached packages, including package:base. The functions stopifnot(), length(), is.numeric(), is.finite(), floor(), factor(), levels(), subset(), nrow(), data.frame(), as.numeric(), is.character(), isna(), and substr() are in package:base, which is loaded by default. getGrowth() is found in .GlobalEnv.
+
+## Modular
+The function is reasonably modular because it separates the task into steps: validating inputs, selecting a sector, calculating growth, and filtering by year. However, it relies on the global gdp dataset rather than accepting the dataset as an argument, which limits its reusability. It could be made more modular by separating these steps into helper functions and passing gdp as an argument.
+
+# Question 6
+```{r}
+# Check whether a data frame has the required GDP format
+isGDPData <- function(df) {
+
+  # Check input type
+  stopifnot(is.data.frame(df))
+
+  # Check required columns
+  if (!all(c("sector", "quarter", "amount") %in% names(df)))
+    {return(FALSE)}
+
+  # Check column types
+if (!is.factor(df$sector))
+  {return(FALSE)}
+
+if (!(is.character(df$quarter) || is.factor(df$quarter)) ||
+    !is.numeric(df$amount))
+  {return(FALSE)}
+
+  # Check for missing values
+  if (anyNA(df$sector) || anyNA(df$quarter) || anyNA(df$amount))
+    {return(FALSE)}
+
+  return(TRUE)}
+
+
+# Testing
+
+# Valid data - return TRUE
+isGDPData(gdp)
+
+# Valid data with rows removed - return TRUE
+isGDPData(gdp[1:10, ])
+
+# Missing sector column - return FALSE
+isGDPData(gdp[, c("quarter", "amount")])
+
+# Missing quarter column - return FALSE
+isGDPData(gdp[, c("sector", "amount")])
+
+# Missing amount column - return FALSE
+isGDPData(gdp[, c("sector", "quarter")])
+
+# Sector is character instead of factor - return FALSE
+badSector <- gdp
+badSector$sector <- as.character(badSector$sector)
+isGDPData(badSector)
+
+# Quarter is numeric instead of character - return FALSE
+badQuarter <- gdp
+badQuarter$quarter <- as.numeric(seq_len(nrow(badQuarter)))
+isGDPData(badQuarter)
+
+# Amount is character instead of numeric - return FALSE
+badAmount <- gdp
+badAmount$amount <- as.character(badAmount$amount)
+isGDPData(badAmount)
+
+# Input is not a data frame - ERROR
+try(isGDPData(c(1, 2, 3)))
+
+# Input is NULL - ERROR
+try(isGDPData(NULL))
+```
+# Question 7
+```{r}
+# Calculate GDP growth for a sector and year range
+getGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Check year inputs
+  stopifnot(startYear <= endYear)
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(df$sector)
+    stopifnot(sectorName == floor(sectorName),
+              sectorName >= 1,
+              sectorName <= length(sectorLevels))
+    sectorName <- sectorLevels[sectorName]}
+  
+
+  # Extract sector rows
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+
+# Testing
+
+# Compare with previous results
+try(all.equal(AgricultureGrowth, getGrowth(gdp, "Agriculture", 1987, 2026)))
+try(all.equal(TotalGrowth, getGrowth(gdp, "Total", 1987, 2026)))
+
+# Test a sector and year range
+try(getGrowth(gdp, "Agriculture", 1988, 1989))
+
+# Test a numeric sector level
+try(getGrowth(gdp, 20, 2025, 2026))
+
+# Test invalid GDP data
+try(badData <- gdp[, c("quarter", "amount")])
+try(getGrowth(badData, "Agriculture", 2025, 2026))
+
+```
+# Question 8
+```{r new func}
+# Calculate GDP growth for a sector and year range
+getGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Check year inputs
+  stopifnot(startYear <= endYear)
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(df$sector)
+    stopifnot(sectorName == floor(sectorName),
+              sectorName >= 1,
+              sectorName <= length(sectorLevels))
+    sectorName <- sectorLevels[sectorName]}
+  
+
+  # Extract sector rows
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# NEW FUNCTION
+
+# Calculate annual GDP growth for a sector and year range
+getAnnualGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Extract sector rows
+  if (is.numeric(sectorName)) 
+    {sectorName <- levels(df$sector)[sectorName]}
+  
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+   # Calculate rolling annual totals
+  n <- nrow(sectorData)
+  annualTotal <- rep(NA, n)
+
+  if (n >= 4) {
+    for (i in 4:n) {
+      annualTotal[i] <- sum(sectorData$amount[(i-3):i])
+    }
+  }
+
+  # Calculate annual growth rates
+  annualrate <- rep(NA, n)
+
+  if (n >= 5) {
+    for (i in 5:n) {
+      annualrate[i] <- (annualTotal[i] / annualTotal[i-1] - 1) * 100
+    }
+  }
+
+
+  # Combine results
+  growth <- data.frame(
+    quarter = sectorData$quarter[-1],
+    annualrate = annualrate[-1])
+  
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# Return quarterly and annual GDP growth
+getGrowths <- function(df, sectorName, startYear, endYear) {
+
+  # Calculate quarterly and annual growth
+  quarterly <- getGrowth(df, sectorName, startYear, endYear)
+  annual <- getAnnualGrowth(df, sectorName, startYear, endYear)
+
+  # Combine results
+  growth <- data.frame(
+    quarter = quarterly$quarter,
+    quarterlyRate = quarterly$rate,
+    annualRate = annual$annualrate)
+  
+
+  return(growth)}
+
+# Test annual growth
+try(getAnnualGrowth(gdp, "Agriculture", 1987, 1988))
+
+# Test combined growth
+try(getGrowths(gdp, "Agriculture", 1987, 1988))
+
+# Test another sector and year range
+try(getGrowths(gdp, "Total", 2025, 2026))
+
+# Test numeric sector level
+try(getGrowths(gdp, 20, 2025, 2026))
+
+```
+# Question 9
+```{r plots}
+# Calculate GDP growth for a sector and year range
+getGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Check year inputs
+  stopifnot(startYear <= endYear)
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(df$sector)
+    stopifnot(sectorName == floor(sectorName),
+              sectorName >= 1,
+              sectorName <= length(sectorLevels))
+    sectorName <- sectorLevels[sectorName]}
+  
+
+  # Extract sector rows
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# Calculate annual GDP growth for a sector and year range
+getAnnualGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Extract sector rows
+  if (is.numeric(sectorName)) 
+    {sectorName <- levels(df$sector)[sectorName]}
+  
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+   # Calculate rolling annual totals
+  n <- nrow(sectorData)
+  annualTotal <- rep(NA, n)
+
+  if (n >= 4) {
+    for (i in 4:n) {
+      annualTotal[i] <- sum(sectorData$amount[(i-3):i])
+    }
+  }
+
+  # Calculate annual growth rates
+  annualrate <- rep(NA, n)
+
+  if (n >= 5) {
+    for (i in 5:n) {
+      annualrate[i] <- (annualTotal[i] / annualTotal[i-1] - 1) * 100
+    }
+  }
+
+
+  # Combine results
+  growth <- data.frame(
+    quarter = sectorData$quarter[-1],
+    annualrate = annualrate[-1])
+  
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# Return quarterly and annual GDP growth
+getGrowths <- function(df, sectorName, startYear, endYear) {
+
+  # Calculate quarterly and annual growth
+  quarterly <- getGrowth(df, sectorName, startYear, endYear)
+  annual <- getAnnualGrowth(df, sectorName, startYear, endYear)
+
+  # Combine results
+  growth <- data.frame(
+    quarter = quarterly$quarter,
+    quarterlyRate = quarterly$rate,
+    annualRate = annual$annualrate)
+  
+
+  return(growth)}
+
+# plot func
+# Plot quarterly and annual GDP growth
+plotGrowths <- function(df, sectorName, startYear, endYear) {
+
+  # Get growth rates
+  growth <- getGrowths(df, sectorName, startYear, endYear)
+
+  # Set up x positions
+  n <- nrow(growth)
+  x <- 1:n
+
+  # Set up plot
+  plot.new()
+  plot.window(xlim = c(0.5, n + 0.5), ylim = c(-20, 20))
+
+  # Draw horizontal grid lines
+  for (y in seq(-20, 20, by = 5)) {
+    abline(h = y, col = "grey80")
+  }
+
+  # Draw quarterly growth bars
+  rect(x - 0.3, 0, x + 0.3, growth$quarterlyRate,
+       col = "lightblue", border = "lightblue")
+
+  # Draw annual growth curve
+  lines(x, growth$annualRate, col = "red", lwd = 2)
+
+  # Add axes
+  axis(2, at = seq(-20, 20, by = 5), las = 1)
+  axis(1, at = which(grepl("Q1", growth$quarter)),
+       labels = substr(growth$quarter[grepl("Q1", growth$quarter)], 1, 4))
+
+  # Add labels and title
+  title(xlab = "Year", ylab = "GDP growth (%)",
+        main = as.character(sectorName))
+
+  # Add legend
+  legend("topright",
+         legend = c("Quarterly growth", "Annual growth"),
+         fill = c("lightblue", NA),
+         border = c("lightblue", NA),
+         lty = c(NA, 1), col = c("lightblue", "red"),
+         lwd = c(NA, 2), bty = "n")
+}
+
+# Plot Agriculture growth
+plotGrowths(gdp, "Agriculture", 1987, 1997)
+
+# Plot sector level 20
+plotGrowths(gdp, 20, 2015, 2026)
+
+```
+
+# Question 10
+```{r}
+# Calculate GDP growth for a sector and year range
+getGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Check year inputs
+  stopifnot(startYear <= endYear)
+
+  # Convert numeric level to sector name
+  if (is.numeric(sectorName)) {
+    sectorLevels <- levels(df$sector)
+    stopifnot(sectorName == floor(sectorName),
+              sectorName >= 1,
+              sectorName <= length(sectorLevels))
+    sectorName <- sectorLevels[sectorName]}
+  
+
+  # Extract sector rows
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+  # Calculate quarterly GDP growth
+  rate <- (sectorData$amount[-1] /
+             sectorData$amount[-nrow(sectorData)] - 1) * 100
+
+  # Select quarters
+  quarter <- sectorData$quarter[-1]
+
+  # Combine into df
+  growth <- data.frame(quarter = quarter, rate = rate)
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# Calculate annual GDP growth for a sector and year range
+getAnnualGrowth <- function(df, sectorName, startYear, endYear) {
+
+  # Check GDP data format
+  if (!isGDPData(df))
+    {stop("Invalid GDP data")}
+
+  # Extract sector rows
+  if (is.numeric(sectorName)) 
+    {sectorName <- levels(df$sector)[sectorName]}
+  
+  sectorData <- subset(df, sector == sectorName)
+  stopifnot(nrow(sectorData) > 0)
+
+   # Calculate rolling annual totals
+  n <- nrow(sectorData)
+  annualTotal <- rep(NA, n)
+
+  if (n >= 4) {
+    for (i in 4:n) {
+      annualTotal[i] <- sum(sectorData$amount[(i-3):i])
+    }
+  }
+
+  # Calculate annual growth rates
+  annualrate <- rep(NA, n)
+
+  if (n >= 5) {
+    for (i in 5:n) {
+      annualrate[i] <- (annualTotal[i] / annualTotal[i-1] - 1) * 100
+    }
+  }
+
+
+  # Combine results
+  growth <- data.frame(
+    quarter = sectorData$quarter[-1],
+    annualrate = annualrate[-1])
+  
+
+  # Filter by year
+  years <- as.numeric(substr(growth$quarter, 1, 4))
+  growth <- growth[years >= startYear & years <= endYear, ]
+
+  return(growth)}
+
+# Return quarterly and annual GDP growth
+getGrowths <- function(df, sectorName, startYear, endYear) {
+
+  # Calculate quarterly and annual growth
+  quarterly <- getGrowth(df, sectorName, startYear, endYear)
+  annual <- getAnnualGrowth(df, sectorName, startYear, endYear)
+
+  # Combine results
+  growth <- data.frame(
+    quarter = quarterly$quarter,
+    quarterlyRate = quarterly$rate,
+    annualRate = annual$annualrate)
+  
+
+  return(growth)}
+
+# plot func
+# Plot quarterly and annual GDP growth
+plotGrowths <- function(df, sectorName, startYear, endYear) {
+
+  # Get growth rates
+  growth <- getGrowths(df, sectorName, startYear, endYear)
+
+  # Set up x positions
+  n <- nrow(growth)
+  x <- 1:n
+
+  # Set up plot
+  plot.new()
+  plot.window(xlim = c(0.5, n + 0.5), ylim = c(-20, 20))
+
+  # Draw horizontal grid lines
+  for (y in seq(-20, 20, by = 5)) {
+    abline(h = y, col = "grey80")
+  }
+
+  # Draw quarterly growth bars
+  rect(x - 0.3, 0, x + 0.3, growth$quarterlyRate,
+       col = "lightblue", border = "lightblue")
+
+  # Draw annual growth curve
+  lines(x, growth$annualRate, col = "red", lwd = 2)
+
+  # Add axes
+  axis(2, at = seq(-20, 20, by = 5), las = 1)
+  axis(1, at = which(grepl("Q1", growth$quarter)),
+       labels = substr(growth$quarter[grepl("Q1", growth$quarter)], 1, 4))
+
+  # Add labels and title
+  title(xlab = "Year", ylab = "GDP growth (%)",
+        main = as.character(sectorName))
+
+  # Add legend
+  legend("topright",
+         legend = c("Quarterly growth", "Annual growth"),
+         fill = c("lightblue", NA),
+         border = c("lightblue", NA),
+         lty = c(NA, 1), col = c("lightblue", "red"),
+         lwd = c(NA, 2), bty = "n")
+}
+
+# Plot Agriculture growth
+plotGrowths(gdp, "Agriculture", 1987, 1997)
+
+# Plot sector level 20
+plotGrowths(gdp, 20, 2015, 2026)
+
+#
+
+# Plot GDP growth for multiple sectors
+plotSectors <- function(sectors, startYear, endYear, df = gdp) {
+
+  # Set up multiple plots
+  n <- length(sectors)
+  ncol <- 3
+  nrow <- ceiling(n / ncol)
+  oldpar <- par(mfrow = c(nrow, ncol))
+
+  # Plot each sector
+  for (sectorName in sectors) {
+    plotGrowths(df, sectorName, startYear, endYear)
+  }
+
+  # Restore plot settings
+  par(oldpar)
+}
+# Plot selected sectors by name
+plotSectors(c("Total", "Goods producing industries",
+              "Other services"), 2015, 2026)
+
+# Plot selected sectors by numeric index
+plotSectors(c(1, 5, 20), 2015, 2026)
+
+```
+
+# Question 11
+```{r}
+# Plot quarterly and annual GDP growth
+plotGrowths <- function(df, sectorName, startYear, endYear,
+                        col = c("skyblue", "red")) {
+
+  # Get growth rates
+  growth <- getGrowths(df, sectorName, startYear, endYear)
+
+  # Set up x positions
+  n <- nrow(growth)
+  x <- 1:n
+
+  # Set up plot
+  plot.new()
+  plot.window(xlim = c(0.5, n + 0.5), ylim = c(-20, 20))
+
+  # Draw horizontal grid lines
+  for (y in seq(-20, 20, by = 5)) {
+    abline(h = y, col = "grey80")
+  }
+
+  # Draw quarterly growth bars
+  rect(x - 0.3, 0, x + 0.3, growth$quarterlyRate,
+       col = col[1], border = col[1])
+
+  # Draw annual growth curve
+  lines(x, growth$annualRate, col = col[2], lwd = 2)
+
+  # Add axes
+  axis(2, at = seq(-20, 20, by = 5), las = 1)
+  q1 <- grepl("Q1", growth$quarter)
+  axis(1, at = which(q1),
+       labels = substr(as.character(growth$quarter[q1]), 1, 4))
+
+  # Set sector title
+  if (is.numeric(sectorName)) {
+    sectorName <- levels(df$sector)[sectorName]
+  }
+
+  # Add labels and title
+  title(xlab = "Year", ylab = "GDP growth (%)",
+        main = as.character(sectorName))
+
+  # Add legend
+  legend("topright",
+         legend = c("Quarterly growth", "Annual growth"),
+         fill = c(col[1], NA),
+         border = c(col[1], NA),
+         lty = c(NA, 1),
+         col = col,
+         lwd = c(NA, 2), bty = "n")
+}
+
+# Plot GDP growth for multiple sectors
+plotSectors <- function(
+  sectors = c("Total", "Primary industries",
+              "Goods producing industries", "Services industries"),
+  startYear, endYear, col = c("skyblue", "red"), df = gdp) {
+
+  # Set up multiple plots
+  n <- length(sectors)
+  ncol <- 3
+  nrow <- ceiling(n / ncol)
+  oldpar <- par(no.readonly = TRUE)
+
+  par(mfrow = c(nrow, ncol), mar = c(3, 3, 2, 1),
+      oma = c(0, 0, 1, 0))
+
+  # Plot each sector
+  for (sectorName in sectors) {
+    plotGrowths(df, sectorName, startYear, endYear, col = col)
+  }
+
+  # Restore plot settings
+  par(oldpar)
+}
+
+# Plot the four default sectors
+plotSectors(startYear = 2015, endYear = 2026)
+
+# Plot selected sectors with default colours
+plotSectors(c("Total", "Agriculture"), 2015, 2026)
+
+# Plot selected sectors with custom colours
+plotSectors(c("Total", "Agriculture"), 2015, 2026,
+            col = c("lightgreen", "blue"))
+
+# Test numeric sector indices
+plotSectors(c(1, 5, 20), 2015, 2026)
+
+plotSectors(startYear = 2015, endYear = 2026)
+```

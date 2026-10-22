@@ -1,0 +1,22 @@
+# Check whether a data frame has the required GDP format
+isGDPData <- function(df) {
+
+  # Check input type
+  stopifnot(is.data.frame(df))
+
+  # Check required columns
+  if (!all(c("sector", "quarter", "amount") %in% names(df)))
+    {return(FALSE)}
+
+  # Check column types
+  if (!is.factor(df$sector))
+    {return(FALSE)}
+
+  if (!is.character(df$quarter) || !is.numeric(df$amount))
+    {return(FALSE)}
+
+  # Check for missing values
+  if (anyNA(df$sector) || anyNA(df$quarter) || anyNA(df$amount))
+    {return(FALSE)}
+
+  return(TRUE)}

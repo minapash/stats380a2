@@ -1,0 +1,23 @@
+# Plot GDP growth for multiple sectors
+plotSectors <- function(sectors, startYear, endYear, df = gdp) {
+
+  # Set up multiple plots
+  n <- length(sectors)
+  ncol <- 3
+  nrow <- ceiling(n / ncol)
+  oldpar <- par(mfrow = c(nrow, ncol))
+
+  # Plot each sector
+  for (sectorName in sectors) {
+    plotGrowths(df, sectorName, startYear, endYear)
+  }
+
+  # Restore plot settings
+  par(oldpar)
+}
+# Plot selected sectors by name
+plotSectors(c("Total", "Goods producing industries",
+              "Other services"), 2015, 2026)
+
+# Plot selected sectors by numeric index
+plotSectors(c(1, 5, 20), 2015, 2026)
